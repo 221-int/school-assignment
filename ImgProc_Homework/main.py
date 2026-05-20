@@ -1,7 +1,7 @@
 import os
 import cv2
 import argparse
-from functions import process_image
+from functions_2 import process_image
 
 def main():
     parser = argparse.ArgumentParser(description="Process images and save results.")
@@ -9,7 +9,8 @@ def main():
     args = parser.parse_args()
     
     input_folder = args.input_folder
-    output_folder = os.path.join(input_folder, "Results")
+    # output_folder = os.path.join(input_folder, "Results")
+    output_folder = "Results"
     failed_files = []
     
     # Ensure output directory exists

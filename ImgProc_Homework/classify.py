@@ -13,7 +13,7 @@ parser.add_argument(
     "--data",
     type=str,
     help="specify path to the images",
-    default='xray_images')
+    default='Results')
 
 parser.add_argument(
     "--model",
@@ -27,7 +27,7 @@ args = parser.parse_args()
 
 # load model weights:
 
-model =  cv2.dnn.readNetFromONNX(args.model)
+model = cv2.dnn.readNetFromONNX(args.model)
 
 # lists to keep filenames, images and identifiers for healthy and sick labels:
 
@@ -57,6 +57,7 @@ if ".DS_Store" in names:
 
 # keeping track of the number of correct predictions for accuracy:
 correct = 0
+wrong_files = []  # 틀린 파일 저장
 
 # main loop:
 for filename in names:
@@ -67,21 +68,45 @@ for filename in names:
     if img is not None:
 
         # pass the image through the neural network:
-        blob = cv2.dnn.blobFromImage(img, 1.0 / 255, (256, 256),(0, 0, 0), swapRB=True, crop=False)
+        blob = cv2.dnn.blobFromImage(img, 1.0 / 255, (256, 256), (0, 0, 0), swapRB=True, crop=False)
         model.setInput(blob)
         output = model.forward()
 
         # identify what the predicted label is:
-        if(output > 0.5):
-            print(f'{filename}: pneumonia')
-            if(filename.startswith(tuple(pneumonias))):
-                correct += 1
+        if output > 0.5:
+            predicted = "pneumonia"
+            is_correct = filename.startswith(tuple(pneumonias))
         else:
-            print(f'{filename}: healthy')
-            if(filename.startswith(tuple(healthys))):
-                correct += 1
+            predicted = "healthy"
+            is_correct = filename.startswith(tuple(healthys))
 
-# print final accuracy:
-print(f'Accuracy is {correct/len(names)}')
+        if is_correct:
+            correct += 1
+            print(f'{filename}: {"pneumonia" if output > 0.5 else "healthy"} ✅')
+        else:
+            correct_label = "pneumonia" if filename.startswith(tuple(pneumonias)) else "healthy"
+            wrong_files.append((filename, predicted, correct_label))
+            print(f'{filename}: {predicted} ❌  (정답: {correct_label})')
 
 # ===================================================================
+
+# print final accuracy:
+print(f'\nAccuracy is {correct / len(names):.4f}  ({correct}/{len(names)})')
+
+# 틀린 파일 요약 출력
+print(f'\n{"="*50}')
+print(f'❌ 틀린 파일 총 {len(wrong_files)}개:')
+print(f'{"="*50}')
+
+healthy_as_pneumonia = [(f, p, c) for f, p, c in wrong_files if c == "healthy"]
+pneumonia_as_healthy = [(f, p, c) for f, p, c in wrong_files if c == "pneumonia"]
+
+if healthy_as_pneumonia:
+    print(f'\n🔴 Healthy인데 Pneumonia로 잘못 예측 ({len(healthy_as_pneumonia)}개):')
+    for fname, pred, correct_label in healthy_as_pneumonia:
+        print(f'  - {fname}')
+
+if pneumonia_as_healthy:
+    print(f'\n🔵 Pneumonia인데 Healthy로 잘못 예측 ({len(pneumonia_as_healthy)}개):')
+    for fname, pred, correct_label in pneumonia_as_healthy:
+        print(f'  - {fname}')
